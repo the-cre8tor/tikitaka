@@ -42,6 +42,10 @@ impl Game {
 
         Ok(())
     }
+
+    pub fn is_active(&self) -> bool {
+        self.state == GameState::Active
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
