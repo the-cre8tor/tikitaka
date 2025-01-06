@@ -46,6 +46,51 @@ impl Game {
     pub fn is_active(&self) -> bool {
         self.state == GameState::Active
     }
+
+    fn current_player_index(&self) -> usize {
+        ((self.turn - 1) % 2) as usize
+    }
+
+    pub fn current_player(&self) -> Pubkey {
+        self.players[self.current_player_index()]
+    }
+
+    pub fn play(&mut self, tile: &Tile) -> Result<()> {
+        require!(self.is_active(), TikitakaError::GameAlreadyOver);
+
+        // First, validate the tile coordinates
+        if !(0..=2).contains(&tile.row) || !(0..=2).contains(&tile.column) {
+            return Err(TikitakaError::TileOutOfBounds.into());
+        }
+
+        // Get indices for cleaner access
+        let row = tile.row as usize;
+        let col = tile.column as usize;
+
+        // Check if tile is already occupied
+        if self.board[row][col].is_some() {
+            return Err(TikitakaError::TileAlreadySet.into());
+        }
+
+        // Set the tile with current player's sign
+        let player_sign =
+            Sign::from_usize(self.current_player_index()).expect("Player index should be valid");
+        self.board[row][col] = Some(player_sign);
+
+        self.update_state();
+
+        if self.state == GameState::Active {
+            self.turn += 1;
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct Tile {
+    row: u8,
+    column: u8,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
