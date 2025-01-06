@@ -85,6 +85,14 @@ impl Game {
 
         Ok(())
     }
+
+    fn is_winning_trio(&self, trio: [(usize, usize); 3]) -> bool {
+        let [first, second, third] = trio;
+
+        self.board[first.0][first.1].is_some()
+            && self.board[first.0][first.1] == self.board[second.0][second.1]
+            && self.board[first.0][first.1] == self.board[third.0][third.1]
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
