@@ -8,14 +8,22 @@ declare_id!("H3g2QDsGtNtAcfuHDA6oeGdeq2w3LjxNrytS7FuwLFB5");
 pub mod tikitaka {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        msg!("Greetings from: {:?}", ctx.program_id);
-        Ok(())
+    pub fn setup_game(ctx: Context<SetupGame>, player_two: Pubkey) -> Result<()> {
+        ctx.accounts
+            .game
+            .start([ctx.accounts.player_one.key(), player_two])
     }
 }
 
 #[derive(Accounts)]
-pub struct Initialize {}
+pub struct SetupGame<'info> {
+    #[account(mut)]
+    pub player_one: Signer<'info>,
+    // init creates rent-exempt accounts
+    #[account(init, payer = player_one, space = 8 + Game::MAXIMUM_SIZE)]
+    pub game: Account<'info, Game>,
+    pub system_program: Program<'info, System>,
+}
 
 #[account]
 pub struct Game {
@@ -92,6 +100,52 @@ impl Game {
         self.board[first.0][first.1].is_some()
             && self.board[first.0][first.1] == self.board[second.0][second.1]
             && self.board[first.0][first.1] == self.board[third.0][third.1]
+    }
+
+    fn update_state(&mut self) {
+        for i in 0..2 {
+            // three of the same in one row
+            if self.is_winning_trio([(i, 0), (i, 1), (i, 2)]) {
+                self.state = GameState::Won {
+                    winner: self.current_player(),
+                }
+            }
+
+            // three of the same in one column
+            if self.is_winning_trio([(0, i), (1, i), (2, i)]) {
+                self.state = GameState::Won {
+                    winner: self.current_player(),
+                };
+
+                return;
+            }
+        }
+
+        // three of the same in one diagonal
+        if self.is_winning_trio([(0, 0), (1, 1), (2, 2)])
+            || self.is_winning_trio([(0, 2), (1, 1), (2, 0)])
+        {
+            self.state = GameState::Won {
+                winner: self.current_player(),
+            };
+
+            return;
+        }
+
+        // reaching this code means the game has not been won,
+        // so if there are unfilled tiles left, it's still active
+        for row in 0..2 {
+            for column in 0..2 {
+                if self.board[row][column].is_none() {
+                    return;
+                }
+            }
+        }
+
+        // game has not been won
+        // game has no mpre free tiles
+        // -> agme ends in a tie
+        self.state = GameState::Tie;
     }
 }
 
